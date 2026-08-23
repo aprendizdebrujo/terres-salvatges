@@ -64,52 +64,97 @@ class Game {
         this.character = null;
         this.currentScreen = 'character-creation';
         this.selectedClass = 'warrior';
+        this.game = this; // Reference to self for event listeners
         this.initializeEventListeners();
+        this.updateStatsDisplay();
     }
 
     initializeEventListeners() {
+        console.log('Inicializant event listeners...');
+        
         // Selecció de classe
-        document.querySelectorAll('.class-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => this.selectClass(e.target.closest('.class-btn')));
-        });
-
-        // Input de nom
-        document.getElementById('char-name').addEventListener('input', (e) => {
-            // Podria fer coses aquí si necessita
+        const classBtns = document.querySelectorAll('.class-btn');
+        console.log('Botons de classe trobats:', classBtns.length);
+        
+        classBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                console.log('Classe clicada:', e.target.dataset.class);
+                this.selectClass(e.target.closest('.class-btn'));
+            });
         });
 
         // Botó de crear personatge
-        document.getElementById('create-btn').addEventListener('click', () => this.createCharacter());
+        const createBtn = document.getElementById('create-btn');
+        console.log('Botó crear trobat:', createBtn ? 'Sí' : 'No');
+        
+        if (createBtn) {
+            createBtn.addEventListener('click', () => {
+                console.log('Botó crear clicat');
+                this.createCharacter();
+            });
+        }
 
         // Teclat per a moviment (quan estem en joc)
         document.addEventListener('keydown', (e) => this.handleKeyPress(e));
     }
 
     selectClass(btn) {
+        console.log('selectClass called');
+        if (!btn) {
+            console.log('No button provided');
+            return;
+        }
+        
         document.querySelectorAll('.class-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         this.selectedClass = btn.dataset.class;
+        console.log('Selected class:', this.selectedClass);
         this.updateStatsDisplay();
     }
 
     updateStatsDisplay() {
+        console.log('Updating stats display for class:', this.selectedClass);
+        
         // Crea un personatge temporal per veure els stats
         const tempChar = new Character('Temp', this.selectedClass);
         
-        document.getElementById('stat-str').textContent = tempChar.stats.str;
-        document.getElementById('stat-dex').textContent = tempChar.stats.dex;
-        document.getElementById('stat-con').textContent = tempChar.stats.con;
-        document.getElementById('stat-int').textContent = tempChar.stats.int;
-        document.getElementById('stat-wis').textContent = tempChar.stats.wis;
-        document.getElementById('stat-cha').textContent = tempChar.stats.cha;
+        const elements = {
+            'stat-str': tempChar.stats.str,
+            'stat-dex': tempChar.stats.dex,
+            'stat-con': tempChar.stats.con,
+            'stat-int': tempChar.stats.int,
+            'stat-wis': tempChar.stats.wis,
+            'stat-cha': tempChar.stats.cha,
+        };
+        
+        for (let id in elements) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.textContent = elements[id];
+            }
+        }
         
         const hp = 8 + Math.floor(tempChar.stats.con / 2);
-        document.getElementById('hp-value').textContent = hp;
+        const hpEl = document.getElementById('hp-value');
+        if (hpEl) {
+            hpEl.textContent = hp;
+        }
+        
+        console.log('Stats updated');
     }
 
     createCharacter() {
-        const name = document.getElementById('char-name').value || 'Aventurer';
+        console.log('Creating character...');
+        
+        const nameInput = document.getElementById('char-name');
+        const name = nameInput ? nameInput.value || 'Aventurer' : 'Aventurer';
+        
+        console.log('Character name:', name);
+        console.log('Selected class:', this.selectedClass);
+        
         this.character = new Character(name, this.selectedClass);
+        
+        console.log('Character created:', this.character);
         
         this.showMainGame();
         this.updateCharacterPanel();
@@ -117,37 +162,71 @@ class Game {
     }
 
     showMainGame() {
-        document.getElementById('character-creation-screen').classList.remove('active');
-        document.getElementById('main-game-screen').classList.add('active');
+        console.log('Showing main game...');
+        
+        const creationScreen = document.getElementById('character-creation-screen');
+        const gameScreen = document.getElementById('main-game-screen');
+        
+        if (creationScreen) creationScreen.classList.remove('active');
+        if (gameScreen) gameScreen.classList.add('active');
+        
         this.currentScreen = 'main-game';
+        console.log('Main game shown');
     }
 
     updateCharacterPanel() {
+        console.log('Updating character panel...');
+        
+        if (!this.character) {
+            console.log('No character to update');
+            return;
+        }
+        
         const char = this.character;
         
         // Nom i classe
-        document.getElementById('panel-char-name').textContent = char.name;
-        document.getElementById('panel-char-class').textContent = this.getClassName(char.class);
+        const nameEl = document.getElementById('panel-char-name');
+        const classEl = document.getElementById('panel-char-class');
+        
+        if (nameEl) nameEl.textContent = char.name;
+        if (classEl) classEl.textContent = this.getClassName(char.class);
         
         // HP
-        document.getElementById('panel-hp').textContent = char.hp;
-        document.getElementById('panel-max-hp').textContent = char.maxHP;
+        const hpEl = document.getElementById('panel-hp');
+        const maxHpEl = document.getElementById('panel-max-hp');
+        
+        if (hpEl) hpEl.textContent = char.hp;
+        if (maxHpEl) maxHpEl.textContent = char.maxHP;
         
         // HP Bar
-        const hpPercent = (char.hp / char.maxHP) * 100;
-        document.getElementById('hp-bar-fill').style.width = hpPercent + '%';
+        const hpBarFill = document.getElementById('hp-bar-fill');
+        if (hpBarFill) {
+            const hpPercent = (char.hp / char.maxHP) * 100;
+            hpBarFill.style.width = hpPercent + '%';
+        }
         
         // Stats
-        document.getElementById('panel-str').textContent = char.stats.str;
-        document.getElementById('panel-dex').textContent = char.stats.dex;
-        document.getElementById('panel-con').textContent = char.stats.con;
-        document.getElementById('panel-int').textContent = char.stats.int;
-        document.getElementById('panel-wis').textContent = char.stats.wis;
-        document.getElementById('panel-cha').textContent = char.stats.cha;
+        const statElements = {
+            'panel-str': char.stats.str,
+            'panel-dex': char.stats.dex,
+            'panel-con': char.stats.con,
+            'panel-int': char.stats.int,
+            'panel-wis': char.stats.wis,
+            'panel-cha': char.stats.cha,
+        };
+        
+        for (let id in statElements) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = statElements[id];
+        }
         
         // Retrat
         const portraitSprite = document.getElementById('portrait-sprite');
-        portraitSprite.className = `portrait-sprite ${char.class}`;
+        if (portraitSprite) {
+            portraitSprite.className = `portrait-sprite ${char.class}`;
+        }
+        
+        console.log('Character panel updated');
     }
 
     getClassName(classId) {
@@ -161,7 +240,14 @@ class Game {
     }
 
     initializeGameWorld() {
+        console.log('Initializing game world...');
+        
         const gameWorld = document.getElementById('game-world');
+        if (!gameWorld) {
+            console.log('game-world element not found');
+            return;
+        }
+        
         gameWorld.innerHTML = `
             <div class="game-view">
                 <div class="world-message">
@@ -173,6 +259,8 @@ class Game {
                 </div>
             </div>
         `;
+        
+        console.log('Game world initialized');
     }
 
     handleKeyPress(e) {
@@ -221,8 +309,20 @@ class Game {
 }
 
 // Inicia el joc quan carrega el document
+let gameInstance = null;
+
 document.addEventListener('DOMContentLoaded', () => {
-    const game = new Game();
-    game.updateStatsDisplay(); // Mostra stats inicials
+    console.log('🎮 DOM Content Loaded - Iniciant Les Terres Salvatges');
+    gameInstance = new Game();
     console.log('🎮 Les Terres Salvatges carregat!');
 });
+
+// Fallback per si el DOMContentLoaded ja s'ha disparat
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('DOMContentLoaded listener activated');
+    });
+} else {
+    console.log('Document already loaded, initializing game now');
+    gameInstance = new Game();
+}
