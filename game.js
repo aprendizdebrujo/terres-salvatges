@@ -1,5 +1,6 @@
 // ============================================
 // LES TERRES SALVATGES - Game.js
+// Party System
 // ============================================
 
 class Character {
@@ -16,8 +17,6 @@ class Character {
     }
 
     generateStats(charClass) {
-        // OSE-style: 3d6 per cada atribut
-        // Però amb modificadors segons la classe
         const baseStats = {
             str: this.roll3d6(),
             dex: this.roll3d6(),
@@ -27,7 +26,6 @@ class Character {
             cha: this.roll3d6(),
         };
 
-        // Modificadors de classe
         const classModifiers = {
             warrior: { str: 2, con: 1 },
             mage: { int: 2, con: -1 },
@@ -38,7 +36,7 @@ class Character {
         const mods = classModifiers[charClass] || {};
         for (let stat in mods) {
             baseStats[stat] += mods[stat];
-            baseStats[stat] = Math.max(3, Math.min(18, baseStats[stat])); // Limita entre 3 i 18
+            baseStats[stat] = Math.max(3, Math.min(18, baseStats[stat]));
         }
 
         return baseStats;
@@ -61,10 +59,11 @@ class Character {
 
 class Game {
     constructor() {
-        this.character = null;
-        this.currentScreen = 'character-creation';
+        this.party = [];
+        this.maxPartySize = 4;
+        this.currentScreen = 'party-creation';
         this.selectedClass = 'warrior';
-        this.game = this; // Reference to self for event listeners
+        this.currentCharIndex = 0;
         this.initializeEventListeners();
         this.updateStatsDisplay();
     }
@@ -74,159 +73,125 @@ class Game {
         
         // Selecció de classe
         const classBtns = document.querySelectorAll('.class-btn');
-        console.log('Botons de classe trobats:', classBtns.length);
-        
         classBtns.forEach(btn => {
             btn.addEventListener('click', (e) => {
-                console.log('Classe clicada:', e.target.dataset.class);
                 this.selectClass(e.target.closest('.class-btn'));
             });
         });
 
-        // Botó de crear personatge
-        const createBtn = document.getElementById('create-btn');
-        console.log('Botó crear trobat:', createBtn ? 'Sí' : 'No');
-        
-        if (createBtn) {
-            createBtn.addEventListener('click', () => {
-                console.log('Botó crear clicat');
-                this.createCharacter();
+        // Input de nom
+        const nameInput = document.getElementById('char-name');
+        if (nameInput) {
+            nameInput.addEventListener('input', () => {
+                // Actualitza stats en temps real
             });
         }
 
-        // Teclat per a moviment (quan estem en joc)
+        // Botó d'afegir personatge
+        const addBtn = document.getElementById('add-btn');
+        if (addBtn) {
+            addBtn.addEventListener('click', () => this.addCharacterToParty());
+        }
+
+        // Botó de començar
+        const startBtn = document.getElementById('start-btn');
+        if (startBtn) {
+            startBtn.addEventListener('click', () => this.startGame());
+        }
+
+        // Teclat
         document.addEventListener('keydown', (e) => this.handleKeyPress(e));
     }
 
     selectClass(btn) {
-        console.log('selectClass called');
-        if (!btn) {
-            console.log('No button provided');
-            return;
-        }
+        if (!btn) return;
         
         document.querySelectorAll('.class-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         this.selectedClass = btn.dataset.class;
-        console.log('Selected class:', this.selectedClass);
         this.updateStatsDisplay();
     }
 
     updateStatsDisplay() {
-        console.log('Updating stats display for class:', this.selectedClass);
-        
-        // Crea un personatge temporal per veure els stats
         const tempChar = new Character('Temp', this.selectedClass);
         
-        const elements = {
-            'stat-str': tempChar.stats.str,
-            'stat-dex': tempChar.stats.dex,
-            'stat-con': tempChar.stats.con,
-            'stat-int': tempChar.stats.int,
-            'stat-wis': tempChar.stats.wis,
-            'stat-cha': tempChar.stats.cha,
-        };
-        
-        for (let id in elements) {
-            const el = document.getElementById(id);
-            if (el) {
-                el.textContent = elements[id];
-            }
-        }
+        document.getElementById('stat-str').textContent = tempChar.stats.str;
+        document.getElementById('stat-dex').textContent = tempChar.stats.dex;
+        document.getElementById('stat-con').textContent = tempChar.stats.con;
+        document.getElementById('stat-int').textContent = tempChar.stats.int;
+        document.getElementById('stat-wis').textContent = tempChar.stats.wis;
+        document.getElementById('stat-cha').textContent = tempChar.stats.cha;
         
         const hp = 8 + Math.floor(tempChar.stats.con / 2);
-        const hpEl = document.getElementById('hp-value');
-        if (hpEl) {
-            hpEl.textContent = hp;
-        }
-        
-        console.log('Stats updated');
+        document.getElementById('hp-value').textContent = hp;
     }
 
-    createCharacter() {
-        console.log('Creating character...');
-        
+    addCharacterToParty() {
         const nameInput = document.getElementById('char-name');
-        const name = nameInput ? nameInput.value || 'Aventurer' : 'Aventurer';
-        
-        console.log('Character name:', name);
-        console.log('Selected class:', this.selectedClass);
-        
-        this.character = new Character(name, this.selectedClass);
-        
-        console.log('Character created:', this.character);
-        
-        this.showMainGame();
-        this.updateCharacterPanel();
-        this.initializeGameWorld();
-    }
+        const name = nameInput.value.trim();
 
-    showMainGame() {
-        console.log('Showing main game...');
-        
-        const creationScreen = document.getElementById('character-creation-screen');
-        const gameScreen = document.getElementById('main-game-screen');
-        
-        if (creationScreen) creationScreen.classList.remove('active');
-        if (gameScreen) gameScreen.classList.add('active');
-        
-        this.currentScreen = 'main-game';
-        console.log('Main game shown');
-    }
-
-    updateCharacterPanel() {
-        console.log('Updating character panel...');
-        
-        if (!this.character) {
-            console.log('No character to update');
+        if (!name) {
+            alert('⚠️ Escriu un nom per al personatge!');
             return;
         }
-        
-        const char = this.character;
-        
-        // Nom i classe
-        const nameEl = document.getElementById('panel-char-name');
-        const classEl = document.getElementById('panel-char-class');
-        
-        if (nameEl) nameEl.textContent = char.name;
-        if (classEl) classEl.textContent = this.getClassName(char.class);
-        
-        // HP
-        const hpEl = document.getElementById('panel-hp');
-        const maxHpEl = document.getElementById('panel-max-hp');
-        
-        if (hpEl) hpEl.textContent = char.hp;
-        if (maxHpEl) maxHpEl.textContent = char.maxHP;
-        
-        // HP Bar
-        const hpBarFill = document.getElementById('hp-bar-fill');
-        if (hpBarFill) {
-            const hpPercent = (char.hp / char.maxHP) * 100;
-            hpBarFill.style.width = hpPercent + '%';
+
+        if (this.party.length >= this.maxPartySize) {
+            alert('⚠️ Ja tens 4 personatges!');
+            return;
         }
-        
-        // Stats
-        const statElements = {
-            'panel-str': char.stats.str,
-            'panel-dex': char.stats.dex,
-            'panel-con': char.stats.con,
-            'panel-int': char.stats.int,
-            'panel-wis': char.stats.wis,
-            'panel-cha': char.stats.cha,
-        };
-        
-        for (let id in statElements) {
-            const el = document.getElementById(id);
-            if (el) el.textContent = statElements[id];
+
+        const newChar = new Character(name, this.selectedClass);
+        this.party.push(newChar);
+
+        console.log(`Personatge afegit: ${name} (${this.selectedClass})`);
+        console.log(`Party size: ${this.party.length}/${this.maxPartySize}`);
+
+        // Neteja el formulari
+        nameInput.value = '';
+        this.selectedClass = 'warrior';
+        document.querySelector('.class-btn.active').classList.remove('active');
+        document.querySelector('[data-class="warrior"]').classList.add('active');
+        this.updateStatsDisplay();
+
+        // Actualitza la visualització
+        this.updatePartyPreview();
+        this.updateProgressBar();
+
+        // Habilita botó start si tenim almenys 1 personatge
+        const startBtn = document.getElementById('start-btn');
+        if (this.party.length >= 1) {
+            startBtn.disabled = false;
         }
-        
-        // Retrat
-        const portraitSprite = document.getElementById('portrait-sprite');
-        if (portraitSprite) {
-            portraitSprite.className = `portrait-sprite ${char.class}`;
+    }
+
+    updatePartyPreview() {
+        const partyList = document.getElementById('party-list');
+        partyList.innerHTML = '';
+
+        this.party.forEach((char, index) => {
+            const item = document.createElement('div');
+            item.className = 'party-member-item';
+            item.innerHTML = `
+                <div class="party-member-name">${index + 1}. ${char.name}</div>
+                <div class="party-member-class">${this.getClassName(char.class)}</div>
+                <div class="party-member-hp">❤️ ${char.hp}/${char.maxHP}</div>
+            `;
+            partyList.appendChild(item);
+        });
+    }
+
+    updateProgressBar() {
+        const progress = (this.party.length / this.maxPartySize) * 100;
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+
+        if (progressFill) {
+            progressFill.style.width = progress + '%';
         }
-        
-        console.log('Character panel updated');
+
+        if (progressText) {
+            progressText.textContent = `Personatge ${this.party.length} de ${this.maxPartySize}`;
+        }
     }
 
     getClassName(classId) {
@@ -239,28 +204,71 @@ class Game {
         return names[classId] || 'Aventurer';
     }
 
-    initializeGameWorld() {
-        console.log('Initializing game world...');
-        
-        const gameWorld = document.getElementById('game-world');
-        if (!gameWorld) {
-            console.log('game-world element not found');
+    startGame() {
+        if (this.party.length === 0) {
+            alert('Necessites almenys 1 personatge!');
             return;
         }
-        
+
+        console.log('Iniciant joc amb party:', this.party);
+        this.showMainGame();
+        this.initializeGameWorld();
+        this.updatePartyPanel();
+    }
+
+    showMainGame() {
+        const creationScreen = document.getElementById('party-creation-screen');
+        const gameScreen = document.getElementById('main-game-screen');
+
+        if (creationScreen) creationScreen.classList.remove('active');
+        if (gameScreen) gameScreen.classList.add('active');
+
+        this.currentScreen = 'main-game';
+    }
+
+    updatePartyPanel() {
+        const partyMembers = document.getElementById('party-members');
+        partyMembers.innerHTML = '';
+
+        this.party.forEach((char, index) => {
+            const card = document.createElement('div');
+            card.className = 'party-member-card';
+            card.innerHTML = `
+                <div class="char-portrait">
+                    <div class="portrait-sprite ${char.class}"></div>
+                </div>
+                <div class="char-info">
+                    <div class="char-name">${char.name}</div>
+                    <div class="char-class">${this.getClassName(char.class)}</div>
+                    <div class="hp-bar">
+                        <div class="hp-bar-fill" style="width: ${(char.hp / char.maxHP) * 100}%"></div>
+                    </div>
+                    <div class="hp-text">${char.hp}/${char.maxHP}</div>
+                </div>
+            `;
+            partyMembers.appendChild(card);
+        });
+    }
+
+    initializeGameWorld() {
+        const gameWorld = document.getElementById('game-world');
+        if (!gameWorld) return;
+
+        const leader = this.party[0];
         gameWorld.innerHTML = `
             <div class="game-view">
                 <div class="world-message">
-                    <h2>🏘️ Poble de Millbrook</h2>
-                    <p>Benvingut a ${this.character.name}!</p>
+                    <h2>🌊 Aigüesbraves</h2>
+                    <p>Benvingut al poble!</p>
                     <p style="margin-top: 10px; font-size: 0.9rem; color: #95a5a6;">
-                        (Accions disponibles en futures versions)
+                        Liderat per: ${leader.name}
+                    </p>
+                    <p style="font-size: 0.85rem; color: #7f8c8d; margin-top: 10px;">
+                        (Sistema de moviment en desenvolupament)
                     </p>
                 </div>
             </div>
         `;
-        
-        console.log('Game world initialized');
     }
 
     handleKeyPress(e) {
@@ -268,47 +276,44 @@ class Game {
 
         const key = e.key.toLowerCase();
         
-        // Moviment amb fletxes o WASD
         switch(key) {
             case 'arrowup':
             case 'w':
-                this.character.position.y -= 1;
+                this.party[0].position.y -= 1;
                 e.preventDefault();
                 break;
             case 'arrowdown':
             case 's':
-                this.character.position.y += 1;
+                this.party[0].position.y += 1;
                 e.preventDefault();
                 break;
             case 'arrowleft':
             case 'a':
-                this.character.position.x -= 1;
+                this.party[0].position.x -= 1;
                 e.preventDefault();
                 break;
             case 'arrowright':
             case 'd':
-                this.character.position.x += 1;
+                this.party[0].position.x += 1;
                 e.preventDefault();
                 break;
             case 'h':
-                // Tecla de prova: curar 1 HP
-                if (this.character.hp < this.character.maxHP) {
-                    this.character.heal(1);
-                    this.updateCharacterPanel();
+                if (this.party[0].hp < this.party[0].maxHP) {
+                    this.party[0].heal(1);
+                    this.updatePartyPanel();
                 }
                 break;
             case 'x':
-                // Tecla de prova: damage 1 HP
-                if (this.character.hp > 0) {
-                    this.character.takeDamage(1);
-                    this.updateCharacterPanel();
+                if (this.party[0].hp > 0) {
+                    this.party[0].takeDamage(1);
+                    this.updatePartyPanel();
                 }
                 break;
         }
     }
 }
 
-// Inicia el joc quan carrega el document
+// Inicia el joc
 let gameInstance = null;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -317,7 +322,6 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('🎮 Les Terres Salvatges carregat!');
 });
 
-// Fallback per si el DOMContentLoaded ja s'ha disparat
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         console.log('DOMContentLoaded listener activated');
